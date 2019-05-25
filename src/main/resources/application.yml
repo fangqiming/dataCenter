@@ -1,0 +1,17 @@
+
+spring:
+  application:
+    name: us_trade
+
+server:
+  port: 8888
+
+#  日志配置
+logging:
+  level:
+    root: info
+    age com.gougu: debug
+
+
+
+
