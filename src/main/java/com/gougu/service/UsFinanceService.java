@@ -2,6 +2,7 @@ package com.gougu.service;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.gougu.util.TimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -24,6 +25,7 @@ public class UsFinanceService {
     private String INCOME = "https://stock.xueqiu.com/v5/stock/finance/us/income.json?symbol=%s&type=Q4&is_detail=true&count=50&timestamp=";
     private String BALANCE = "https://stock.xueqiu.com/v5/stock/finance/us/balance.json?symbol=%s&type=Q4&is_detail=true&count=50&timestamp=";
     private String CASH_FLOW = "https://stock.xueqiu.com/v5/stock/finance/us/cash_flow.json?symbol=%s&type=Q4&is_detail=true&count=50&timestamp=";
+    private String MARKET = "https://stock.xueqiu.com/v5/stock/chart/kline.json?symbol=%s&begin=%s&period=year&type=before&count=-142&indicator=kline,pe,pb,ps,pcf,market_capital,agt,ggt,balance";
 
     @Autowired
     private FileHelpService fileHelpService;
@@ -39,10 +41,24 @@ public class UsFinanceService {
      *
      * @param stocks
      */
-    public void writeFinancialToDist(List<String> stocks) {
-        List<List<String>> lists = FileHelpService.cutList(stocks, 15);
-        for (int i = 5; i < lists.size(); i++) {
+    public void writeFinancialToDist(List<String> stocks, Integer share) {
+        List<List<String>> lists = FileHelpService.cutList(stocks, share);
+        for (int i = 14; i < lists.size(); i++) {
+            System.out.println("当前第 " + i + " 列表");
             handleWrite(i, lists.get(i));
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void writeMarket(List<String> stocks, Integer share) {
+        List<List<String>> lists = FileHelpService.cutList(stocks, share);
+        for (int i = 11; i < lists.size(); i++) {
+            System.out.println("当前第 " + i + " 列表");
+            handleMarket(i, lists.get(i));
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
@@ -81,16 +97,33 @@ public class UsFinanceService {
         }
     }
 
+    private void handleMarket(Integer i, List<String> stocks) {
+        OutputStreamWriter market = fileHelpService.create("D:/market" + i);
+        fileHelpService.write(market, "code,timestamp,volume,open,high,low,close,chg,percent,turnoverrate,amount,volume_post,amount_post,pe,pb,ps,pcf,market_capital,balance,hold_volume_cn,hold_ratio_cn,net_volume_cn,hold_volume_hk,hold_ratio_hk,net_volume_hk\n");
+        try {
+            for (String code : stocks) {
+                System.out.println(code);
+                writeMarket(code, market);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            fileHelpService.close(market);
+        }
+    }
+
     private void writeIncome(String code, OutputStreamWriter osw) {
         String indicator = String.format(INCOME, code);
         HttpEntity<MultiValueMap<String, String>> cookie = cookieService.getCookie("https://xueqiu.com");
         ResponseEntity<JSONObject> indicatorJson = restTemplate.exchange(indicator, HttpMethod.GET, cookie, JSONObject.class);
+        String currency = indicatorJson.getBody().getJSONObject("data").getString("currency_name");
         if (Objects.nonNull(indicatorJson)) {
             JSONArray jsonArray = indicatorJson.getBody().getJSONObject("data").getJSONArray("list");
             for (int i = 0; i < jsonArray.size(); i++) {
                 JSONObject t = jsonArray.getJSONObject(i);
-                String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                         , code
+                        , currency
                         , t.getString("report_name")
                         , t.getString("sd")
                         , t.getString("ed")
@@ -132,12 +165,14 @@ public class UsFinanceService {
         String indicator = String.format(BALANCE, code);
         HttpEntity<MultiValueMap<String, String>> cookie = cookieService.getCookie("https://xueqiu.com");
         ResponseEntity<JSONObject> balanceJson = restTemplate.exchange(indicator, HttpMethod.GET, cookie, JSONObject.class);
+        String currency = balanceJson.getBody().getJSONObject("data").getString("currency_name");
         if (Objects.nonNull(balanceJson)) {
             JSONArray jsonArray = balanceJson.getBody().getJSONObject("data").getJSONArray("list");
             for (int i = 0; i < jsonArray.size(); i++) {
                 JSONObject t = jsonArray.getJSONObject(i);
-                String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                         , code
+                        , currency
                         , t.getString("report_name")
                         , t.getString("sd")
                         , t.getString("ed")
@@ -199,12 +234,14 @@ public class UsFinanceService {
         String indicator = String.format(CASH_FLOW, code);
         HttpEntity<MultiValueMap<String, String>> cookie = cookieService.getCookie("https://xueqiu.com");
         ResponseEntity<JSONObject> cashJson = restTemplate.exchange(indicator, HttpMethod.GET, cookie, JSONObject.class);
+        String currency = cashJson.getBody().getJSONObject("data").getString("currency_name");
         if (Objects.nonNull(cashJson)) {
             JSONArray jsonArray = cashJson.getBody().getJSONObject("data").getJSONArray("list");
             for (int i = 0; i < jsonArray.size(); i++) {
                 JSONObject t = jsonArray.getJSONObject(i);
-                String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                         , code
+                        , currency
                         , t.getString("report_name")
                         , t.getString("sd")
                         , t.getString("ed")
@@ -225,6 +262,47 @@ public class UsFinanceService {
                 );
                 fileHelpService.write(osw, line);
             }
+        }
+    }
+
+    private void writeMarket(String code, OutputStreamWriter osw) {
+        String marketUrl = String.format(MARKET, code, System.currentTimeMillis());
+        HttpEntity<MultiValueMap<String, String>> cookie = cookieService.getCookie("https://xueqiu.com");
+        ResponseEntity<JSONObject> cashJson = restTemplate.exchange(marketUrl, HttpMethod.GET, cookie, JSONObject.class);
+        JSONObject data = cashJson.getBody().getJSONObject("data");
+        String symbol = data.getString("symbol");
+        JSONArray item = data.getJSONArray("item");
+        for (int i = 0; i < item.size(); i++) {
+            JSONArray t = item.getJSONArray(i);
+            //"timestamp", "volume", "open", "high", "low", "close", "chg", "percent", "turnoverrate", "amount", "volume_post", "amount_post", "pe", "pb", "ps", "pcf", "market_capital", "balance", "hold_volume_cn", "hold_ratio_cn", "net_volume_cn", "hold_volume_hk", "hold_ratio_hk", "net_volume_hk"
+            String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                    , symbol
+                    , TimeUtil.getTime(t.getLong(0))
+                    , t.getBigDecimal(1)
+                    , t.getBigDecimal(2)
+                    , t.getBigDecimal(3)
+                    , t.getBigDecimal(4)
+                    , t.getBigDecimal(5)
+                    , t.getBigDecimal(6)
+                    , t.getBigDecimal(7)
+                    , t.getBigDecimal(8)
+                    , t.getBigDecimal(9)
+                    , t.getBigDecimal(10)
+                    , t.getBigDecimal(11)
+                    , t.getBigDecimal(12)
+                    , t.getBigDecimal(13)
+                    , t.getBigDecimal(14)
+                    , t.getBigDecimal(15)
+                    , t.getBigDecimal(16)
+                    , t.getBigDecimal(17)
+                    , t.getBigDecimal(18)
+                    , t.getBigDecimal(19)
+                    , t.getBigDecimal(20)
+                    , t.getBigDecimal(21)
+                    , t.getBigDecimal(22)
+                    , t.getBigDecimal(23));
+            fileHelpService.write(osw, line);
+
         }
     }
 

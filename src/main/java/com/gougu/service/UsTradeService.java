@@ -22,7 +22,10 @@ import java.util.List;
 @Service
 public class UsTradeService {
 
-    private String URL = "https://stock.xueqiu.com/v5/stock/chart/kline.json?symbol=%s&begin=%s&period=month&type=before&count=-142&indicator=kline,pe,pb,ps,pcf,market_capital,agt,ggt,balance";
+    //月
+//    private String URL = "https://stock.xueqiu.com/v5/stock/chart/kline.json?symbol=%s&begin=%s&period=month&type=before&count=-142&indicator=kline,pe,pb,ps,pcf,market_capital,agt,ggt,balance";
+    //日
+    private String URL = "https://stock.xueqiu.com/v5/stock/chart/kline.json?symbol=AIEQ&begin=1562918650000&period=day&type=before&count=-142&indicator=kline,pe,pb,ps,pcf,market_capital,agt,ggt,balance";
 
     private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -36,10 +39,14 @@ public class UsTradeService {
     private RestTemplate restTemplate;
 
     public void writeTrade(String path, List<String> stocks) {
-        List<List<String>> lists = FileHelpService.cutList(stocks, 15);
-        for (int i = 0; i < lists.size(); i++) {
-            writeTradeToDist(lists.get(i), i, path);
-            FileHelpService.sleep(5000L);
+        if (stocks.size() > 100) {
+            List<List<String>> lists = FileHelpService.cutList(stocks, 15);
+            for (int i = 0; i < lists.size(); i++) {
+                writeTradeToDist(lists.get(i), i, path);
+                FileHelpService.sleep(5000L);
+            }
+        } else {
+            writeTradeToDist(stocks, 0, path);
         }
     }
 
@@ -63,7 +70,7 @@ public class UsTradeService {
     }
 
     private void writeTrade(String code, OutputStreamWriter osw) {
-        String url = String.format(URL, code, System.currentTimeMillis());
+        String url = String.format(URL, code);
         HttpEntity<MultiValueMap<String, String>> cookie = cookieService.getCookie("https://xueqiu.com");
         ResponseEntity<JSONObject> json = restTemplate.exchange(url, HttpMethod.GET, cookie, JSONObject.class);
         JSONArray jsonArray = json.getBody().getJSONObject("data").getJSONArray("item");

@@ -47,7 +47,6 @@ public class CookieService {
 
     private HttpEntity<MultiValueMap<String, String>> getXqHttpEntity(String url) {
         try {
-//            String url = "https://xueqiu.com";
             HttpClient httpClient = new HttpClient();
             GetMethod getMethod = new GetMethod(url);
             httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
